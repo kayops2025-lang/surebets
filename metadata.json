@@ -1,0 +1,6 @@
+{
+  "name": "Surebets Arbitraje",
+  "description": "Scanner de arbitraje deportivo, cuotas en tiempo real y calculadora integrada de surebets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

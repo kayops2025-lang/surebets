@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Herramientas de Casino & Rollover</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header>
+    <h1>Herramientas de Casino & EV</h1>
+    <nav>
+      <button class="pestana activa" data-seccion="bono">Bono y Simulador</button>
+      <button class="pestana" data-seccion="slots">Base de Slots</button>
+      <button class="pestana" data-seccion="observaciones">Observaciones</button>
+      <button class="pestana" data-seccion="blackjack">Blackjack</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="bono" class="seccion activa">
+      <div class="columnas">
+        <div class="tarjeta">
+          <h2>Oferta</h2>
+          <label>Bono ($) <input type="number" id="b-bono" value="150" min="0" step="1"></label>
+          <label>Depósito propio ($) <input type="number" id="b-deposito" value="0" min="0" step="1"></label>
+          <label>Requisito de apuesta (veces) <input type="number" id="b-requisito" value="1" min="0" step="0.5"></label>
+          <label>El requisito se aplica a
+            <select id="b-base">
+              <option value="bono">Solo el bono</option>
+              <option value="bono+deposito">Bono + depósito</option>
+            </select>
+          </label>
+          <label>Contribución del juego al requisito (%) <input type="number" id="b-contribucion" value="100" min="1" max="100" step="1"></label>
+          <label class="casilla"><input type="checkbox" id="b-retirable" checked> El bono se vuelve retirable al cumplir</label>
+          <label>Retiro máximo ($, 0 = sin tope) <input type="number" id="b-tope" value="0" min="0" step="1"></label>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Juego</h2>
+          <label>Slot de la base
+            <select id="b-slot"></select>
+          </label>
+          <label>Retorno, RTP (%) <input type="number" id="b-rtp" value="94.5" min="1" max="120" step="0.01"></label>
+          <label>Volatilidad
+            <select id="b-volatilidad">
+              <option value="1">1 · Baja (Low)</option>
+              <option value="2">2 · Media-baja (Low-Medium)</option>
+              <option value="3" selected>3 · Media (Medium)</option>
+              <option value="4">4 · Alta (Medium-High / High)</option>
+              <option value="5">5 · Muy alta (Very High / Extreme)</option>
+            </select>
+          </label>
+          <label>Frecuencia de acierto (%) <input type="number" id="b-hit" value="30" min="1" max="95" step="0.1"></label>
+          <p class="nota">Porcentaje de giros con algún premio. No es la frecuencia de bonos.</p>
+          <label>Ganancia máxima (× apuesta, 0 = sin dato) <input type="number" id="b-maxwin" value="0" min="0" step="1"></label>
+          <p class="aviso" id="b-aviso-slot"></p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Apuesta</h2>
+          <label>Apuesta por giro, con ante bet ($) <input type="number" id="b-apuesta" value="0.15" min="0.01" step="0.01"></label>
+          <label>Extra por giro para jackpots ($) <input type="number" id="b-extra" value="0" min="0" step="0.01"></label>
+          <label>Retorno del extra (%) <input type="number" id="b-retorno-extra" value="0" min="0" max="100" step="1"></label>
+          <label class="casilla"><input type="checkbox" id="b-extra-cuenta" checked> El extra cuenta para el requisito</label>
+          <label>Segundos por giro <input type="number" id="b-segundos" value="3" min="0.5" step="0.5"></label>
+          <p class="nota">El retorno de los jackpots casi nunca se publica. Con 0% se supone el peor caso: lo que pagas para optar al pozo no vuelve.</p>
+        </div>
+      </div>
+
+      <div class="columnas">
+        <div class="tarjeta">
+          <h2>Cuenta rápida</h2>
+          <dl class="resultados" id="r-analitico"></dl>
+          <p class="nota">No considera quedarse sin saldo, el tope de retiro ni los bonos no retirables. Para eso está la simulación.</p>
+        </div>
+
+        <div class="tarjeta ancha">
+          <h2>Simulación de Monte Carlo</h2>
+          <div class="fila">
+            <label>Simulaciones (bonos completos)
+              <select id="s-n">
+                <option value="1000">1.000</option>
+                <option value="10000" selected>10.000</option>
+                <option value="50000">50.000</option>
+                <option value="100000">100.000</option>
+              </select>
+            </label>
+            <button id="s-correr" class="primario">Simular</button>
+            <progress id="s-progreso" max="1" value="0" hidden></progress>
+          </div>
+          <dl class="resultados" id="r-simulacion"></dl>
+          <canvas id="s-histograma" width="720" height="220"></canvas>
+          <p class="nota">Esta simulación usa un modelo aproximado basado en RTP, frecuencia de acierto y volatilidad. No reproduce la tabla de pagos real del juego. Los bonos se estiman con la cola de esa tabla para el tiempo y el recuento; no añaden RTP extra. Cada simulación es una sesión independiente.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="slots" class="seccion">
+      <div class="barra">
+        <input type="search" id="t-buscar" placeholder="Buscar juego, proveedor o casino">
+        <label class="casilla"><input type="checkbox" id="t-solo-rtp"> Solo con RTP</label>
+        <button id="t-agregar" class="primario">Agregar juego</button>
+        <button id="t-exportar">Exportar CSV</button>
+        <label class="boton">Importar CSV <input type="file" id="t-importar" accept=".csv,text/csv" hidden></label>
+        <button id="t-restaurar">Restaurar lista inicial</button>
+      </div>
+      <p class="nota">El RTP que vale es el de la información del juego abierta dentro de tu casino. Un mismo slot puede tener otra versión en otro casino o en otro estado.</p>
+      <table>
+        <thead>
+          <tr>
+            <th data-orden="juego">Juego</th>
+            <th data-orden="proveedor">Proveedor</th>
+            <th data-orden="casino">Casino</th>
+            <th data-orden="estado">Estado</th>
+            <th data-orden="rtp">RTP</th>
+            <th data-orden="volatilidad">Volatilidad</th>
+            <th data-orden="hit">Acierto</th>
+            <th data-orden="maxWin">Máx.</th>
+            <th data-orden="revisado">Revisado</th>
+            <th>Notas</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="t-cuerpo"></tbody>
+      </table>
+    </section>
+
+    <section id="observaciones" class="seccion">
+      <div class="barra">
+        <input type="search" id="o-buscar" placeholder="Buscar juego, casino o notas">
+        <button id="o-agregar" class="primario">Agregar observación</button>
+        <button id="o-exportar">Exportar CSV</button>
+        <label class="boton">Importar CSV <input type="file" id="o-importar" accept=".csv,text/csv" hidden></label>
+      </div>
+      <p class="nota">Estas sesiones no cambian el RTP oficial ni la ficha del slot. tipoDato = observado. Los campos vacíos quedan vacíos.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Juego</th>
+            <th>Casino</th>
+            <th>Estado</th>
+            <th>Apuesta</th>
+            <th>Giros</th>
+            <th>Bonos</th>
+            <th>Tipo</th>
+            <th>RTP oficial (copia)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="o-cuerpo"></tbody>
+      </table>
+    </section>
+
+    <section id="blackjack" class="seccion">
+      <div class="columnas">
+        <div class="tarjeta">
+          <h2>Tu mano</h2>
+          <p class="nota">Reglas: 8 mazos, baraja nueva cada mano, el crupier se planta en 17 suave, se dobla con dos cartas y después de separar, blackjack paga 3 a 2.</p>
+          <h3>Carta del crupier</h3>
+          <div class="cartas" id="bj-crupier"></div>
+          <h3>Tus cartas</h3>
+          <div class="cartas" id="bj-jugador"></div>
+          <div class="fila">
+            <div class="mano" id="bj-mano">Sin cartas</div>
+            <button id="bj-borrar-ultima">Quitar última</button>
+            <button id="bj-limpiar">Nueva mano</button>
+          </div>
+          <div class="decision" id="bj-decision">Elige la carta del crupier y tus dos cartas</div>
+          <p class="nota">Seguro: no tomarlo nunca. Con baraja completa, menos de un tercio de las cartas valen 10 y el seguro paga 2 a 1.</p>
+        </div>
+        <div class="tarjeta ancha">
+          <h2>Tabla de estrategia básica</h2>
+          <div id="bj-tabla"></div>
+          <p class="leyenda">
+            <span class="c-H">H</span> Pedir
+            <span class="c-S">S</span> Plantarse
+            <span class="c-D">D</span> Doblar, si no se puede, pedir
+            <span class="c-X">Ds</span> Doblar, si no se puede, plantarse
+            <span class="c-P">P</span> Separar
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="editor">
+    <form method="dialog" id="editor-form">
+      <h2 id="editor-titulo">Juego</h2>
+      <label>Juego <input name="juego" required></label>
+      <label>Proveedor <input name="proveedor"></label>
+      <label>Casino <input name="casino" placeholder="FanDuel, DraftKings…"></label>
+      <label>Estado <input name="estado" placeholder="NJ"></label>
+      <label>RTP (%) <input name="rtp" type="number" step="0.01" min="1" max="120"></label>
+      <label>Volatilidad
+        <select name="volatilidad">
+          <option value="">Sin dato</option>
+          <option value="1">1 · Baja (Low)</option>
+          <option value="2">2 · Media-baja (Low-Medium)</option>
+          <option value="3">3 · Media (Medium)</option>
+          <option value="4">4 · Alta (Medium-High / High)</option>
+          <option value="5">5 · Muy alta (Very High / Extreme)</option>
+        </select>
+      </label>
+      <label>Frecuencia de acierto (%) <input name="hit" type="number" step="0.1" min="1" max="95"></label>
+      <label>Ganancia máxima (× apuesta) <input name="maxWin" type="number" step="1" min="0"></label>
+      <label>Revisado <input name="revisado" type="date"></label>
+      <label>Notas <input name="notas"></label>
+      <label>Frecuencia de bono (% de giros) <input name="frecuenciaBono" type="number" step="0.01" min="0"></label>
+      <label>Duración del bono (segundos) <input name="duracionBono" type="number" step="0.1" min="0"></label>
+      <label>Giros internos del bono <input name="spinsBono" type="number" step="1" min="0"></label>
+      <label>RTP base (%) <input name="rtpBase" type="number" step="0.01" min="0"></label>
+      <label>RTP bono (%) <input name="rtpBono" type="number" step="0.01" min="0"></label>
+      <label>Tipo de dato de bono
+        <select name="tipoDatoBono">
+          <option value="">Estimado (si no hay frecuencia)</option>
+          <option value="real">Real / oficial</option>
+          <option value="observado">Observado</option>
+        </select>
+      </label>
+      <label>Fuente de los datos <input name="fuenteDatos" placeholder="FanDuel NJ"></label>
+      <label>Fecha de los datos <input name="fechaDatos" type="date"></label>
+      <label>Versión <input name="version"></label>
+      <div class="fila derecha">
+        <button value="cancelar" formnovalidate>Cancelar</button>
+        <button value="guardar" class="primario">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="editor-obs">
+    <form method="dialog" id="editor-obs-form">
+      <h2 id="editor-obs-titulo">Observación</h2>
+      <label>Slot de la base
+        <select id="o-slot"></select>
+      </label>
+      <p class="nota">Al elegir un slot se copian juego, proveedor, casino, estado y RTP oficial. Eso no modifica la ficha.</p>
+      <label>Fecha <input name="fecha" type="date"></label>
+      <label>Juego <input name="juego" required></label>
+      <label>Proveedor <input name="proveedor"></label>
+      <label>Casino <input name="casino"></label>
+      <label>Estado <input name="estado"></label>
+      <label>RTP oficial (copia, no se escribe en el slot) <input name="rtpOficial" type="number" step="0.01"></label>
+      <input name="slotId" type="hidden">
+      <label>Apuesta base ($) <input name="apuestaBase" type="number" step="0.01" min="0"></label>
+      <label>Extra jackpot ($) <input name="extraJackpot" type="number" step="0.01" min="0"></label>
+      <label>Coste por giro ($) <input name="costePorSpin" type="number" step="0.01" min="0"></label>
+      <label>Giros observados <input name="spinsObservados" type="number" step="1" min="0"></label>
+      <label>Bonos activados <input name="bonosActivados" type="number" step="1" min="0"></label>
+      <label>Giros donde se activó el bono <input name="spinsDondeSeActivoBonus" placeholder="9,15"></label>
+      <label>Giros internos de bono <input name="spinsInternosBonus" type="number" step="1" min="0"></label>
+      <label>Duración del bono (s) <input name="duracionBonus" type="number" step="0.1" min="0"></label>
+      <label>Premios de bono ($) <input name="premiosBonus" type="number" step="0.01"></label>
+      <label>Premios totales ($) <input name="premiosTotales" type="number" step="0.01"></label>
+      <label>Saldo inicial ($) <input name="saldoInicial" type="number" step="0.01"></label>
+      <label>Saldo final ($) <input name="saldoFinal" type="number" step="0.01"></label>
+      <label>Volumen apostado ($) <input name="volumenApostado" type="number" step="0.01"></label>
+      <label>Notas <input name="notas"></label>
+      <label>Fuente <input name="fuente"></label>
+      <label>Tipo de dato
+        <select name="tipoDato">
+          <option value="observado" selected>observado</option>
+          <option value="oficial">oficial</option>
+          <option value="estimado">estimado</option>
+        </select>
+      </label>
+      <input name="id" type="hidden">
+      <div class="fila derecha">
+        <button value="cancelar" formnovalidate>Cancelar</button>
+        <button value="guardar" class="primario">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="modelo.js"></script>
+  <script src="datos.js"></script>
+  <script src="observaciones.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

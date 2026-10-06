@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e7c7b">
+<title>Calculadora de Cuotas & Arbitraje Deportivo</title>
+<style>
+:root{--bg:#eef2f1;--ink:#14262b;--mute:#5a6e72;--line:#c9d6d4;--card:#fff;--ok:#1b7a45;--bad:#b3372e;--teal:#0e7c7b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:20px 14px 64px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:1.45rem;margin:0 0 4px}
+h2{font-size:1.05rem;margin:0 0 12px}
+.sub{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
+input,select,button{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-height:44px}
+button{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:600;cursor:pointer}
+button:hover{background:#0b6564}
+button.ghost{background:#fff;color:var(--teal)}
+:focus-visible{outline:3px solid #9fd6d4;outline-offset:1px}
+select[size]{padding:4px;min-height:0;height:11.5rem}
+.team{padding-left:12px;border-left:5px solid var(--c)}
+.big{font-size:2rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.small{font-size:.85rem;color:var(--mute)}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:16px 0 4px;background:var(--line)}
+.bar i{display:block}
+.verdict{font-weight:600;padding:12px 14px;border-radius:8px;margin-bottom:14px}
+.verdict.ok{background:#e3f4ea;color:var(--ok)}
+.verdict.bad{background:#fbe9e7;color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:8px 4px;border-top:1px solid var(--line);text-align:right}
+td:first-child,th:first-child{text-align:left}
+th{font-size:.8rem;color:var(--mute);font-weight:600}
+.best{color:var(--ok);font-weight:700}
+.wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.err{color:var(--bad);margin:8px 0 0}
+.note{font-size:.85rem;color:var(--mute)}
+details summary{cursor:pointer;font-weight:600}
+.check{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:.85rem;color:var(--mute)}
+.check input{width:auto;min-height:0;padding:0}
+.ev{display:block;width:100%;text-align:left;background:#f6fbfa;color:var(--ink);border:1px solid var(--line);margin:0 0 8px}
+.ev:hover{background:#e8f4f3}
+.ev b{color:var(--ok)}
+.leg{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.leg button{width:auto;min-height:36px;padding:6px 12px;background:#fff;color:var(--bad);border-color:var(--line)}
+.hidden{display:none}
+.log-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.log-actions button{width:auto}
+.tight td,.tight th{font-size:.85rem;padding:6px 4px}
+@media (max-width:560px){
+  .row,.probs{grid-template-columns:1fr !important}
+  h1{font-size:1.3rem}
+  .big{font-size:1.7rem}
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>⚽ Calculadora de Cuotas & Arbitraje</h1>
+  <p class="sub">Scanner de Surebets, apuestas +EV y distribución de capital.</p>
+
+  <section class="card">
+    <h2>1. Buscar Partido & Cuotas en Vivo</h2>
+    <details id="keyBox">
+      <summary>Clave de The Odds API (Opcional)</summary>
+      <label for="key">Gratis en the-odds-api.com</label>
+      <input id="key" type="password" autocomplete="off" placeholder="Pega tu API Key de The Odds API">
+    </details>
+    <label for="sport">Deporte</label>
+    <select id="sport">
+      <option value="americanfootball_nfl">NFL</option>
+      <option value="baseball_mlb">MLB</option>
+      <option value="basketball_nba">NBA</option>
+      <option value="icehockey_nhl">NHL</option>
+      <option value="mma_mixed_martial_arts">UFC / MMA</option>
+      <option value="soccer_usa_mls">Fútbol: MLS</option>
+      <option value="soccer_epl">Fútbol: Premier League</option>
+      <option value="soccer_uefa_champs_league">Fútbol: Champions League</option>
+    </select>
+    <div style="margin-top:12px"><button id="load" type="button">Cargar Partidos en Vivo</button></div>
+    <p id="status" class="note" role="status"></p>
+    <label for="filter">Filtrar por nombre de equipo</label>
+    <input id="filter" placeholder="Ej: Giants" autocomplete="off">
+    <label class="check"><input id="onlyArb" type="checkbox"> Solo mostrar Surebets (Arbitraje)</label>
+    <label for="games">Partidos</label>
+    <select id="games" size="6" aria-label="Lista de partidos"></select>
+  </section>
+
+  <section class="card hidden" id="evCard">
+    <h2>Apuestas +EV</h2>
+    <p class="note" style="margin:0 0 10px">Compara cada casa con el precio justo del mercado sin margen.</p>
+    <label for="evMin">Mostrar a partir de este EV (%)</label>
+    <input id="evMin" value="0.5" inputmode="decimal" style="max-width:140px">
+    <div id="evList"></div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="margin-top:0">
+      <div>
+        <label for="bankroll" style="margin-top:0">Bankroll (USD)</label>
+        <input id="bankroll" value="100" inputmode="decimal" autocomplete="off">
+        <p class="note" style="margin:6px 0 0">Para gestión ¼ Kelly en apuestas +EV.</p>
+      </div>
+      <div>
+        <label for="stake" style="margin-top:0">Total a Apostar (Stake en USD)</label>
+        <input id="stake" value="100" inputmode="decimal" autocomplete="off">
+        <p class="note" style="margin:6px 0 0">Se reparte proporcionalmente en el arbitraje.</p>
+      </div>
+    </div>
+    <p id="err" class="err" role="alert"></p>
+  </section>
+
+  <details class="card" open>
+    <summary>Calculadora Manual de Cuotas</summary>
+    <div class="row">
+      <div><label for="nA">Equipo / Selección A</label><input id="nA" value="Equipo A">
+           <label for="oA">Cuota Americana / Decimal</label><input id="oA" value="+120"></div>
+      <div><label for="nB">Equipo / Selección B</label><input id="nB" value="Equipo B">
+           <label for="oB">Cuota Americana / Decimal</label><input id="oB" value="-110"></div>
+    </div>
+  </details>
+
+  <div id="out" aria-live="polite"></div>
+
+  <section class="card" id="pCard">
+    <h2>2. Armador de Parlay</h2>
+    <div class="row">
+      <div><label for="pStake">Cuánto apuesto (USD)</label><input id="pStake" value="10" inputmode="decimal" autocomplete="off"></div>
+      <div><label for="pTarget">Cuánto quiero cobrar (USD, opcional)</label><input id="pTarget" inputmode="decimal" autocomplete="off" placeholder="Ej: 100"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost" id="pSuggest" type="button">Completar Parlay hasta Meta</button>
+      <button class="ghost" id="pClear" type="button">Vaciar Parlay</button>
+    </div>
+    <p id="pErr" class="err" role="alert"></p>
+    <div id="pBody"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. Convertir Promoción (Matched Betting)</h2>
+    <p class="note" style="margin:0 0 10px">Extrae en efectivo tus apuestas gratis mediante cobertura opuesta.</p>
+    <label for="promoType">Tipo de promoción</label>
+    <select id="promoType">
+      <option value="gratis">Apuesta gratis SNR (Stake Not Returned)</option>
+      <option value="bono">Bono / crédito con retención</option>
+    </select>
+    <label for="promoAmt">Monto de la promoción (USD)</label>
+    <input id="promoAmt" value="50" inputmode="decimal" autocomplete="off" style="max-width:200px">
+    <div class="row">
+      <div>
+        <label for="promoOA">Cuota de la promoción</label>
+        <input id="promoOA" value="+150" autocomplete="off" placeholder="+150">
+        <label for="promoBookA">Casa de la promoción</label>
+        <input id="promoBookA" placeholder="Ej: DraftKings">
+      </div>
+      <div>
+        <label for="promoOB">Cuota de la cobertura</label>
+        <input id="promoOB" value="-130" autocomplete="off" placeholder="-130">
+        <label for="promoBookB">Casa de la cobertura</label>
+        <input id="promoBookB" placeholder="Ej: FanDuel">
+      </div>
+    </div>
+    <p id="promoErr" class="err" role="alert"></p>
+    <div id="promoOut"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COLORS = ['#0e7c7b', '#6b4fa0', '#a0761a'];
+const implied = o => o > 0 ? 100 / (o + 100) : -o / (-o + 100);
+const decimal = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o;
+const usd = n => (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('en-US', {style:'currency', currency:'USD'});
+const pct = n => (n * 100).toFixed(1) + '%';
+const fmt = o => o > 0 ? '+' + o : String(o);
+const parseOdds = v => {
+  const n = parseFloat(String(v).replace(',', '.'));
+  if (!isFinite(n)) return null;
+  if (Math.abs(n) >= 100) return n;
+  if (n > 1.0) return n >= 2 ? Math.round((n - 1) * 100) : Math.round(-100 / (n - 1));
+  return null;
+};
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+
+let games = [];
+let mode = 'manual';
+let apiView = null;
+let evPicks = [];
+let legs = [];
+let curGi = null;
+let loadedSport = '';
+
+function gameLabel(g){ return g.away_team + ' vs ' + g.home_team; }
+
+function viewFromGame(g){
+  const best = {}, table = {};
+  (g.bookmakers || []).forEach(b => {
+    const m = (b.markets || []).find(m => m.key === 'h2h'); if (!m) return;
+    m.outcomes.forEach(o => {
+      (table[o.name] = table[o.name] || []).push({book: b.title, price: o.price});
+      if (!best[o.name] || decimal(o.price) > decimal(best[o.name].price)) best[o.name] = {price: o.price, book: b.title};
+    });
+  });
+  const outs = Object.keys(best).map(n => ({name: n, odds: best[n].price, book: best[n].book}));
+  return {outs, table};
+}
+
+function fairFromTable(table, names){
+  const books = {};
+  names.forEach(n => (table[n] || []).forEach(x => {
+    (books[x.book] = books[x.book] || {})[n] = x.price;
+  }));
+  const acc = Object.fromEntries(names.map(n => [n, []]));
+  Object.values(books).forEach(row => {
+    if (!names.every(n => row[n] != null)) return;
+    const impl = names.map(n => implied(row[n]));
+    const s = impl.reduce((a, b) => a + b, 0);
+    names.forEach((n, i) => acc[n].push(impl[i] / s));
+  });
+  return Object.fromEntries(names.map(n => [n, avg(acc[n])]));
+}
+
+function kelly(dec, p){
+  const b = dec - 1, q = 1 - p;
+  const f = (b * p - q) / b;
+  return f > 0 ? f : 0;
+}
+
+function picksFromGame(g, gi){
+  const {outs, table} = viewFromGame(g);
+  if (outs.length < 2) return [];
+  const names = outs.map(o => o.name);
+  const fair = fairFromTable(table, names);
+  if (names.some(n => !fair[n])) return [];
+  const list = [];
+  names.forEach(n => (table[n] || []).forEach(x => {
+    const d = decimal(x.price);
+    const ev = d * fair[n] - 1;
+    list.push({gi, game: gameLabel(g), when: g.commence_time, name: n, book: x.book, odds: x.price, ev, fair: fair[n], kelly: kelly(d, fair[n])});
+  }));
+  return list;
+}
+
+function renderEv(){
+  const min = (parseFloat($('evMin').value) || 0) / 100;
+  const shown = evPicks.filter(p => p.ev >= min).sort((a, b) => b.ev - a.ev);
+  const bank = parseFloat($('bankroll').value) || 0;
+  $('evCard').classList.toggle('hidden', !games.length);
+  if (!shown.length){
+    $('evList').innerHTML = '<p class="note">No hay apuestas +EV por encima de ese mínimo en este momento.</p>';
+    return;
+  }
+  $('evList').innerHTML = shown.slice(0, 40).map(p => {
+    const k = bank > 0 ? ' · ¼ Kelly ' + usd(bank * p.kelly / 4) : '';
+    return `<button type="button" class="ev" data-gi="${p.gi}"><div><b>EV ${pct(p.ev)}</b> · ${esc(p.name)} ${fmt(p.odds)}</div>
+      <div class="small">${esc(p.book)} · ${esc(p.game)} · justo ${pct(p.fair)}${k}</div></button>`;
+  }).join('');
+}
+
+function render(outs, table){
+  const stake = parseFloat($('stake').value);
+  const err = $('err');
+  if (!isFinite(stake) || stake <= 0){ err.textContent = 'Escribe un monto mayor que cero.'; $('out').innerHTML = ''; return; }
+  if (outs.some(o => o.odds === null)){ err.textContent = 'Escribe cuotas válidas (ej. +150 o -110).'; $('out').innerHTML = ''; return; }
+  err.textContent = '';
+
+  const p = outs.map(o => implied(o.odds));
+  const sum = p.reduce((a, b) => a + b, 0);
+  const fairBest = p.map(x => x / sum);
+  const d = outs.map(o => decimal(o.odds));
+  const inv = d.reduce((a, x) => a + 1 / x, 0);
+  const st = d.map(x => stake * (1 / x) / inv);
+  const payout = st[0] * d[0];
+  const result = payout - stake, roi = result / stake, isArb = inv < 1;
+  const names = outs.map(o => o.name);
+  const market = table ? fairFromTable(table, names) : Object.fromEntries(names.map((n, i) => [n, fairBest[i]]));
+
+  const arb = `
+    <section class="card"><h2>Resultado de Arbitraje</h2>
+    <div class="verdict ${isArb ? 'ok' : 'bad'}">${isArb
+      ? `🎉 ¡Surebet Confirmada! Ganas ${usd(result)} (${pct(roi)} ROI) pase lo que pase.`
+      : `Sin arbitraje (Margen ${pct(inv - 1)}). Pérdida esperada de ${usd(-result)}.`}</div>
+    <table>
+      ${outs.map((o, i) => `<tr><td>Apostar a ${esc(o.name)}${o.book ? ' en ' + esc(o.book) : ''}</td><td><b>${usd(st[i])}</b></td></tr>`).join('')}
+      <tr><td>Cobro garantizado</td><td><b>${usd(payout)}</b></td></tr>
+      <tr><td>Beneficio neto</td><td><b style="color:var(${isArb ? '--ok' : '--bad'})">${usd(result)}</b></td></tr>
+    </table>
+    <p class="note" style="margin:10px 0 0">Suma de probabilidades inversas: ${pct(inv)}</p></section>`;
+
+  $('out').innerHTML = arb;
+}
+
+function refresh(){
+  if (mode === 'api' && apiView) render(apiView.outs, apiView.table);
+  else render([{name: $('nA').value.trim() || 'Equipo A', odds: parseOdds($('oA').value)},
+               {name: $('nB').value.trim() || 'Equipo B', odds: parseOdds($('oB').value)}], null);
+  renderEv();
+}
+
+function fillGames(){
+  const q = $('filter').value.trim().toLowerCase();
+  const onlyArb = $('onlyArb').checked;
+  const sel = $('games'); sel.innerHTML = '';
+  games.map((g, i) => {
+    const view = viewFromGame(g);
+    const inv = view.outs.length >= 2 ? view.outs.reduce((a, o) => a + 1 / decimal(o.odds), 0) : 99;
+    const bestEv = Math.max(0, ...picksFromGame(g, i).map(p => p.ev));
+    return {g, i, inv, bestEv};
+  }).filter(({g, inv}) => {
+    if (onlyArb && inv >= 1) return false;
+    if (q && !(g.home_team + ' ' + g.away_team).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, b) => a.inv - b.inv).forEach(({g, i, inv, bestEv}) => {
+    const when = new Date(g.commence_time).toLocaleString('es-US', {dateStyle:'short', timeStyle:'short'});
+    let tag = inv < 1 ? ` · ARB ${pct(1 - inv)}` : ` · margen ${pct(inv - 1)}`;
+    if (bestEv >= 0.005) tag += ` · EV ${pct(bestEv)}`;
+    sel.add(new Option(`${g.away_team} vs ${g.home_team} · ${when}${tag}`, i));
+  });
+}
+
+function selectGame(i){
+  const g = games[i]; if (!g) return;
+  $('games').value = String(i);
+  mode = 'api'; curGi = Number(i); apiView = viewFromGame(g); refresh();
+}
+
+async function load(){
+  const key = $('key').value.trim(), status = $('status');
+  if (!key){ status.textContent = 'Escribe tu clave de The Odds API para datos en vivo.'; $('keyBox').open = true; return; }
+  status.textContent = 'Cargando cuotas...';
+  try {
+    const url = `https://api.the-odds-api.com/v4/sports/${$('sport').value}/odds?regions=us&markets=h2h&oddsFormat=american&apiKey=${encodeURIComponent(key)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Error ' + r.status);
+    games = await r.json();
+    evPicks = games.flatMap((g, i) => picksFromGame(g, i));
+    fillGames();
+    renderEv();
+    status.textContent = `${games.length} partidos cargados.`;
+    if ($('games').options.length) selectGame($('games').options[0].value);
+  } catch (e) {
+    status.textContent = 'No se pudo conectar: ' + e.message;
+  }
+}
+
+$('load').addEventListener('click', load);
+$('filter').addEventListener('input', fillGames);
+$('onlyArb').addEventListener('change', fillGames);
+$('evMin').addEventListener('input', renderEv);
+$('games').addEventListener('change', () => selectGame($('games').value));
+['nA','nB','oA','oB'].forEach(id => $(id).addEventListener('input', () => { mode = 'manual'; refresh(); }));
+$('stake').addEventListener('input', refresh);
+$('bankroll').addEventListener('input', refresh);
+
+// Promo matched betting
+function renderPromo(){
+  const type = $('promoType').value;
+  const amt = parseFloat($('promoAmt').value);
+  const oA = parseOdds($('promoOA').value);
+  const oB = parseOdds($('promoOB').value);
+  const out = $('promoOut');
+  if (!isFinite(amt) || amt <= 0 || oA === null || oB === null){ out.innerHTML = ''; return; }
+  const dA = decimal(oA), dB = decimal(oB);
+  const hedge = type === 'gratis' ? amt * (dA - 1) / dB : amt * dA / dB;
+  const winP = type === 'gratis' ? amt * (dA - 1) - hedge : amt * dA - hedge;
+  const winH = hedge * (dB - 1);
+  const locked = Math.min(winP, winH);
+  out.innerHTML = `
+    <div class="verdict ok">Extracción garantizada: <b>${usd(locked)}</b> (${pct(locked/amt)} del bono)</div>
+    <table>
+      <tr><td>Apostar Free Bet en Casa A</td><td><b>${usd(amt)}</b> a ${fmt(oA)}</td></tr>
+      <tr><td>Cubrir en Casa B (tu dinero)</td><td><b>${usd(hedge)}</b> a ${fmt(oB)}</td></tr>
+      <tr><td>Cobro garantizado neto</td><td><b>${usd(locked)}</b></td></tr>
+    </table>`;
+}
+['promoType','promoAmt','promoOA','promoOB'].forEach(id => $(id).addEventListener('input', renderPromo));
+
+refresh();
+renderPromo();
+</script>
+</body>
+</html>
